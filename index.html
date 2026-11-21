@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Bioluminescent Jellyfish Orchestra</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23020a18'/%3E%3Cdefs%3E%3CradialGradient id='g' cx='50%25' cy='40%25' r='55%25'%3E%3Cstop offset='0%25' stop-color='%23a5f3fc'/%3E%3Cstop offset='55%25' stop-color='%2322d3ee' stop-opacity='0.85'/%3E%3Cstop offset='100%25' stop-color='%236366f1' stop-opacity='0.15'/%3E%3C/radialGradient%3E%3C/defs%3E%3Cpath d='M14 32 C14 14, 50 14, 50 32 C44 35, 38 32, 32 34 C26 32, 20 35, 14 32 Z' fill='url(%23g)' stroke='%2367e8f9' stroke-width='1.5'/%3E%3Cpath d='M22 34 Q19 46 23 56 M32 34 Q30 48 33 58 M42 34 Q45 46 40 56' fill='none' stroke='%2367e8f9' stroke-width='1.8' stroke-linecap='round' opacity='0.85'/%3E%3Ccircle cx='32' cy='25' r='4' fill='%23ecfeff' opacity='0.9'/%3E%3C/svg%3E" />
+  <style>
+    :root {
+      --glass-bg: rgba(4, 14, 30, 0.56);
+      --glass-border: rgba(125, 226, 255, 0.18);
+      --glass-hover: rgba(10, 28, 56, 0.78);
+      --accent: #5eead4;
+      --accent-cyan: #67e8f9;
+      --text-main: #e0f7ff;
+      --text-muted: rgba(186, 230, 253, 0.68);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #01050d;
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #oceanCanvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      touch-action: none;
+      cursor: crosshair;
+    }
+
+    .hud {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    }
+
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .glass-panel {
+      pointer-events: auto;
+      background: var(--glass-bg);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--glass-border);
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      transition: opacity 0.45s ease, background 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+    }
+
+    .hud.is-idle .glass-panel {
+      opacity: 0.65;
+    }
+
+    .glass-panel:hover,
+    .glass-panel:focus-within {
+      opacity: 1 !important;
+      border-color: rgba(125, 226, 255, 0.36);
+    }
+
+    .depth-card {
+      padding: 11px 15px;
+      min-width: 235px;
+      max-width: 290px;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+      animation: bioPulse 2.8s ease-in-out infinite;
+    }
+
+    @keyframes bioPulse {
+      0%, 100% { transform: scale(0.85); opacity: 0.65; }
+      50% { transform: scale(1.25); opacity: 1; }
+    }
+
+    .brand-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent-cyan);
+    }
+
+    .depth-metrics {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .depth-value {
+      font-size: 20px;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -0.02em;
+      color: #f0fdff;
+    }
+
+    .depth-zone {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--accent);
+      text-align: right;
+    }
+
+    .depth-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .depth-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      flex: 1;
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #38bdf8, #818cf8, #c084fc);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .depth-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ecfeff;
+      border: 2px solid #22d3ee;
+      box-shadow: 0 0 10px rgba(34, 211, 238, 0.8);
+      cursor: pointer;
+    }
+
+    .depth-slider::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ecfeff;
+      border: 2px solid #22d3ee;
+      box-shadow: 0 0 10px rgba(34, 211, 238, 0.8);
+      cursor: pointer;
+    }
+
+    .pressure-readout {
+      margin-top: 5px;
+      font-size: 10.5px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .controls-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 9px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      appearance: none;
+      border: 1px solid rgba(125, 226, 255, 0.2);
+      background: rgba(12, 32, 62, 0.55);
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 7px 11px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.12s ease, box-shadow 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .btn:hover {
+      background: rgba(24, 58, 104, 0.72);
+      border-color: rgba(103, 232, 249, 0.5);
+      box-shadow: 0 0 14px rgba(34, 211, 238, 0.22);
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn.is-active {
+      background: rgba(20, 83, 108, 0.65);
+      border-color: rgba(94, 234, 212, 0.65);
+      color: #ccfbf1;
+      box-shadow: 0 0 14px rgba(94, 234, 212, 0.28);
+    }
+
+    .btn-mini {
+      padding: 4px 8px;
+      font-size: 12px;
+      border-radius: 8px;
+      min-width: 26px;
+      justify-content: center;
+    }
+
+    .select-scale {
+      appearance: none;
+      -webkit-appearance: none;
+      border: 1px solid rgba(125, 226, 255, 0.2);
+      background: rgba(12, 32, 62, 0.65);
+      color: var(--text-main);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 7px 26px 7px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      outline: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2367e8f9' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+    }
+
+    .select-scale:hover {
+      border-color: rgba(103, 232, 249, 0.5);
+    }
+
+    .select-scale option {
+      background: #061428;
+      color: #e0f7ff;
+    }
+
+    .sound-bars {
+      display: inline-flex;
+      align-items: flex-end;
+      gap: 2px;
+      height: 11px;
+    }
+
+    .sound-bars span {
+      width: 2px;
+      background: currentColor;
+      border-radius: 2px;
+      height: 4px;
+      transition: height 0.2s ease;
+    }
+
+    .btn.is-active .sound-bars span:nth-child(1) { animation: eq 0.9s ease-in-out infinite 0s; }
+    .btn.is-active .sound-bars span:nth-child(2) { animation: eq 0.75s ease-in-out infinite 0.2s; }
+    .btn.is-active .sound-bars span:nth-child(3) { animation: eq 1.05s ease-in-out infinite 0.35s; }
+
+    @keyframes eq {
+      0%, 100% { height: 3px; }
+      50% { height: 11px; }
+    }
+
+    .hud-bottom {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .whisper-banner {
+      padding: 7px 16px;
+      border-radius: 999px;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      color: #d8fbff;
+      background: rgba(5, 18, 38, 0.62);
+      border: 1px solid rgba(103, 232, 249, 0.28);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+      text-align: center;
+      max-width: 90vw;
+    }
+
+    .whisper-banner.is-visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .hint-pill {
+      padding: 7px 15px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      letter-spacing: 0.02em;
+      text-align: center;
+      transition: opacity 0.8s ease;
+    }
+
+    .hint-pill.is-hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .help-popover {
+      position: fixed;
+      top: 72px;
+      right: 16px;
+      width: min(310px, calc(100vw - 32px));
+      padding: 14px 16px;
+      z-index: 20;
+      display: none;
+      font-size: 12.5px;
+      line-height: 1.55;
+      color: #cdeeff;
+    }
+
+    .help-popover.is-open {
+      display: block;
+    }
+
+    .help-popover h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent-cyan);
+      margin-bottom: 8px;
+    }
+
+    .help-popover ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .help-popover li strong {
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    @media (max-width: 640px) {
+      .hud-top {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .depth-card {
+        max-width: none;
+        padding: 9px 12px;
+      }
+
+      .controls-bar {
+        justify-content: space-between;
+        padding: 6px 8px;
+      }
+
+      .btn, .select-scale {
+        font-size: 11.5px;
+        padding: 6px 9px;
+      }
+
+      .help-popover {
+        top: auto;
+        bottom: 76px;
+        right: 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="oceanCanvas" aria-label="Bioluminescent Jellyfish Orchestra Interactive Canvas"></canvas>
+
+  <div class="hud" id="hud">
+    <div class="hud-top">
+      <div class="glass-panel depth-card">
+        <div class="brand-row">
+          <span class="pulse-dot"></span>
+          <span class="brand-title">Jellyfish Orchestra</span>
+        </div>
+        <div class="depth-metrics">
+          <span class="depth-value" id="depthText">1,250 m</span>
+          <span class="depth-zone" id="zoneText">Midnight Zone</span>
+        </div>
+        <div class="depth-controls">
+          <button class="btn btn-mini" id="depthUpBtn" title="Ascend (-)" aria-label="Ascend to shallower water">−</button>
+          <input class="depth-slider" id="depthSlider" type="range" min="200" max="10900" step="10" value="1250" aria-label="Ocean depth slider" />
+          <button class="btn btn-mini" id="depthDownBtn" title="Dive deeper (+)" aria-label="Dive deeper">+</button>
+        </div>
+        <div class="pressure-readout">
+          <span id="pressureText">126.0 ATM</span>
+          <span id="jellyCountText">8 voices</span>
+        </div>
+      </div>
+
+      <div class="glass-panel controls-bar">
+        <button class="btn" id="audioToggleBtn" title="Toggle Web Audio soundscape (M)">
+          <span class="sound-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+          <span id="audioLabel">Audio: Off</span>
+        </button>
+
+        <select class="select-scale" id="scaleSelect" aria-label="Harmonic scale">
+          <option value="lydian">Bioluminescent Lydian</option>
+          <option value="abyssal">Abyssal Minor</option>
+          <option value="whale">Whale Song Drone</option>
+        </select>
+
+        <button class="btn" id="sonarBtn" title="Emit acoustic sonar ping (Space)">◎ Sonar</button>
+        <button class="btn" id="spawnBtn" title="Spawn a new jellyfish (N)">+ Jelly</button>
+        <button class="btn btn-mini" id="helpBtn" title="Controls & secrets">?</button>
+      </div>
+    </div>
+
+    <div class="glass-panel help-popover" id="helpPopover">
+      <h3>Abyssal Acoustics</h3>
+      <ul>
+        <li><strong>Stroke / Drag:</strong> Stir glowing plankton trails and coax delicate harmonic bell chimes from tentacles and bells.</li>
+        <li><strong>Tap / Click / Space:</strong> Emit an expanding acoustic sonar ping that ripples across every jellyfish in sequence.</li>
+        <li><strong>Scroll / Slider / +/-:</strong> Dive from the Twilight Zone (200 m) to the Hadal Trench (10,900 m), shifting ocean color &amp; harmonic pressure.</li>
+        <li><strong>Deep Secret:</strong> Dive to the Hadal floor to wake the Abyssal Beacon, or triple-tap a rare Golden Sovereign jellyfish.</li>
+      </ul>
+    </div>
+
+    <div class="hud-bottom">
+      <div class="whisper-banner" id="whisperBanner"></div>
+      <div class="glass-panel hint-pill" id="hintPill">
+        Drag to stroke bioluminescence · Tap or Space for sonar ping · Scroll to dive deeper
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (() => {
+      'use strict';
+
+      const canvas = document.getElementById('oceanCanvas');
+      const ctx = canvas.getContext('2d', { alpha: false });
+
+      const hud = document.getElementById('hud');
+      const depthText = document.getElementById('depthText');
+      const zoneText = document.getElementById('zoneText');
+      const pressureText = document.getElementById('pressureText');
+      const jellyCountText = document.getElementById('jellyCountText');
+      const depthSlider = document.getElementById('depthSlider');
+      const depthUpBtn = document.getElementById('depthUpBtn');
+      const depthDownBtn = document.getElementById('depthDownBtn');
+      const audioToggleBtn = document.getElementById('audioToggleBtn');
+      const audioLabel = document.getElementById('audioLabel');
+      const scaleSelect = document.getElementById('scaleSelect');
+      const sonarBtn = document.getElementById('sonarBtn');
+      const spawnBtn = document.getElementById('spawnBtn');
+      const helpBtn = document.getElementById('helpBtn');
+      const helpPopover = document.getElementById('helpPopover');
+      const hintPill = document.getElementById('hintPill');
+      const whisperBanner = document.getElementById('whisperBanner');
+
+      let width = window.innerWidth;
+      let height = window.innerHeight;
+      let dpr = Math.min(window.devicePixelRatio || 1, 2);
+
+      function resize() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      // ============================================================
+      // UTILITY & COLOR INTERPOLATION
+      // ============================================================
+      const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+      const lerp = (a, b, t) => a + (b - a) * t;
+      const rand = (min, max) => min + Math.random() * (max - min);
+
+      function lerpColor(c1, c2, t) {
+        return [
+          Math.round(lerp(c1[0], c2[0], t)),
+          Math.round(lerp(c1[1], c2[1], t)),
+          Math.round(lerp(c1[2], c2[2], t))
+        ];
+      }
+
+      function rgb(c, a = 1) {
+        return a >= 1
+          ? `rgb(${c[0]},${c[1]},${c[2]})`
+          : `rgba(${c[0]},${c[1]},${c[2]},${a})`;
+      }
+
+      // ============================================================
+      // SCALES & HARMONICS
+      // ============================================================
+      const SCALES = {
+        lydian: {
+          name: 'Bioluminescent Lydian',
+          // D3 Lydian lush intervals in MIDI
+          notes: [50, 52, 54, 56, 57, 59, 61, 62, 64, 66, 68, 69, 71, 74]
+        },
+        abyssal: {
+          name: 'Abyssal Minor',
+          // C# minor 9 / pentatonic extensions
+          notes: [49, 51, 52, 56, 59, 61, 63, 64, 68, 71, 73, 76]
+        },
+        whale: {
+          name: 'Whale Song Drone',
+          // Ancient quartal / Hirajoshi-inspired deep intervals (C# / G#)
+          notes: [44, 49, 51, 52, 56, 57, 61, 63, 64, 68, 69, 73]
+        }
+      };
+
+      function midiToFreq(midi, depthDetuneRatio = 1) {
+        return 440 * Math.pow(2, (midi - 69) / 12) * depthDetuneRatio;
+      }
+
+      // ============================================================
+      // PROCEDURAL WEB AUDIO ENGINE
+      // ============================================================
+      class AbyssAudioEngine {
+        constructor() {
+          this.ctx = null;
+          this.enabled = false;
+          this.initialized = false;
+          this.masterGain = null;
+          this.reverbNode = null;
+          this.delayNode = null;
+          this.delayFeedback = null;
+          this.droneGain = null;
+          this.droneOsc1 = null;
+          this.droneOsc2 = null;
+          this.noiseFilter = null;
+          this.noiseGain = null;
+          this.currentScale = 'lydian';
+          this.lastPlanktonTime = 0;
+        }
+
+        init() {
+          if (this.initialized) return;
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (!AudioCtx) return;
+
+          this.ctx = new AudioCtx();
+          this.masterGain = this.ctx.createGain();
+          this.masterGain.gain.value = 0.0001;
+
+          const compressor = this.ctx.createDynamicsCompressor();
+          compressor.threshold.value = -16;
+          compressor.knee.value = 18;
+          compressor.ratio.value = 4;
+          compressor.attack.value = 0.02;
+          compressor.release.value = 0.25;
+
+          this.masterGain.connect(compressor);
+          compressor.connect(this.ctx.destination);
+
+          // Procedural underwater reverb IR (3.4s lush low-passed tail)
+          const irLength = Math.floor(this.ctx.sampleRate * 3.4);
+          const irBuffer = this.ctx.createBuffer(2, irLength, this.ctx.sampleRate);
+          for (let ch = 0; ch < 2; ch++) {
+            const data = irBuffer.getChannelData(ch);
+            let lp = 0;
+            for (let i = 0; i < irLength; i++) {
+              const decay = Math.pow(1 - i / irLength, 2.6);
+              const white = (Math.random() * 2 - 1) * decay;
+              lp = lp * 0.72 + white * 0.28;
+              data[i] = lp * 0.75;
+            }
+          }
+          this.reverbNode = this.ctx.createConvolver();
+          this.reverbNode.buffer = irBuffer;
+          const reverbGain = this.ctx.createGain();
+          reverbGain.gain.value = 0.58;
+          this.reverbNode.connect(reverbGain);
+          reverbGain.connect(this.masterGain);
+
+          // Underwater delay bus
+          this.delayNode = this.ctx.createDelay(1.5);
+          this.delayNode.delayTime.value = 0.42;
+          this.delayFeedback = this.ctx.createGain();
+          this.delayFeedback.gain.value = 0.36;
+          const delayFilter = this.ctx.createBiquadFilter();
+          delayFilter.type = 'lowpass';
+          delayFilter.frequency.value = 950;
+          const delayOut = this.ctx.createGain();
+          delayOut.gain.value = 0.34;
+
+          this.delayNode.connect(delayFilter);
+          delayFilter.connect(this.delayFeedback);
+          this.delayFeedback.connect(this.delayNode);
+          delayFilter.connect(delayOut);
+          delayOut.connect(this.masterGain);
+          delayOut.connect(this.reverbNode);
+
+          // Deep hydrophone ambient drone + filtered ocean noise
+          this.droneGain = this.ctx.createGain();
+          this.droneGain.gain.value = 0.14;
+          const droneFilter = this.ctx.createBiquadFilter();
+          droneFilter.type = 'lowpass';
+          droneFilter.frequency.value = 180;
+          this.droneFilter = droneFilter;
+
+          this.droneOsc1 = this.ctx.createOscillator();
+          this.droneOsc1.type = 'sine';
+          this.droneOsc1.frequency.value = 55;
+
+          this.droneOsc2 = this.ctx.createOscillator();
+          this.droneOsc2.type = 'triangle';
+          this.droneOsc2.frequency.value = 82.41;
+          const osc2SubGain = this.ctx.createGain();
+          osc2SubGain.gain.value = 0.35;
+
+          this.droneOsc1.connect(droneFilter);
+          this.droneOsc2.connect(osc2SubGain);
+          osc2SubGain.connect(droneFilter);
+          droneFilter.connect(this.droneGain);
+          this.droneGain.connect(this.masterGain);
+          this.droneGain.connect(this.reverbNode);
+
+          this.droneOsc1.start();
+          this.droneOsc2.start();
+
+          // Brown-ish abyssal current noise
+          const noiseLen = this.ctx.sampleRate * 3;
+          const noiseBuf = this.ctx.createBuffer(1, noiseLen, this.ctx.sampleRate);
+          const nData = noiseBuf.getChannelData(0);
+          let lastOut = 0;
+          for (let i = 0; i < noiseLen; i++) {
+            const white = Math.random() * 2 - 1;
+            nData[i] = (lastOut + 0.02 * white) / 1.02;
+            lastOut = nData[i];
+            nData[i] *= 2.8;
+          }
+          const noiseSrc = this.ctx.createBufferSource();
+          noiseSrc.buffer = noiseBuf;
+          noiseSrc.loop = true;
+
+          this.noiseFilter = this.ctx.createBiquadFilter();
+          this.noiseFilter.type = 'lowpass';
+          this.noiseFilter.frequency.value = 240;
+          this.noiseGain = this.ctx.createGain();
+          this.noiseGain.gain.value = 0.09;
+
+          noiseSrc.connect(this.noiseFilter);
+          this.noiseFilter.connect(this.noiseGain);
+          this.noiseGain.connect(this.masterGain);
+          noiseSrc.start();
+
+          this.initialized = true;
+        }
+
+        async setEnabled(shouldEnable) {
+          if (shouldEnable && !this.initialized) {
+            this.init();
+          }
+          if (!this.ctx) return;
+          if (shouldEnable && this.ctx.state === 'suspended') {
+            await this.ctx.resume();
+          }
+          this.enabled = shouldEnable;
+          const now = this.ctx.currentTime;
+          this.masterGain.gain.cancelScheduledValues(now);
+          this.masterGain.gain.setTargetAtTime(shouldEnable ? 0.72 : 0.0001, now, 0.18);
+          updateAudioUI();
+        }
+
+        updateDepth(depthNorm) {
+          if (!this.initialized || !this.enabled) return;
+          const now = this.ctx.currentTime;
+          // Deeper water = lower hydrophone cutoff, slightly deeper fundamental drone
+          const droneBase = lerp(65.41, 41.20, depthNorm); // C2 down to E1-ish
+          this.droneOsc1.frequency.setTargetAtTime(droneBase, now, 0.4);
+          this.droneOsc2.frequency.setTargetAtTime(droneBase * 1.498, now, 0.4);
+          this.droneFilter.frequency.setTargetAtTime(lerp(240, 115, depthNorm), now, 0.4);
+          this.noiseFilter.frequency.setTargetAtTime(lerp(320, 140, depthNorm), now, 0.4);
+        }
+
+        playJellyVoice(noteIndex, intensity = 0.5, panX = 0, depthNorm = 0.3, isGolden = false, isPulse = false) {
+          if (!this.enabled || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const scale = SCALES[this.currentScale].notes;
+          const midi = scale[noteIndex % scale.length];
+          // Deeper pressure subtly flattens / warms pitch by up to -2.5%
+          const pressureRatio = lerp(1.0, 0.965, depthNorm);
+          const freq = midiToFreq(midi, pressureRatio);
+
+          const osc = this.ctx.createOscillator();
+          const oscHarm = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const filter = this.ctx.createBiquadFilter();
+          const panner = this.ctx.createStereoPanner();
+
+          osc.type = isPulse ? 'sine' : 'triangle';
+          osc.frequency.setValueAtTime(freq, now);
+
+          oscHarm.type = 'sine';
+          oscHarm.frequency.setValueAtTime(freq * (isGolden ? 2.0 : 1.5), now);
+
+          const harmGain = this.ctx.createGain();
+          harmGain.gain.value = isGolden ? 0.42 : (isPulse ? 0.14 : 0.25);
+
+          filter.type = 'lowpass';
+          filter.frequency.setValueAtTime(isPulse ? 680 : 1850, now);
+          filter.frequency.exponentialRampToValueAtTime(340, now + (isPulse ? 1.1 : 2.1));
+
+          panner.pan.setValueAtTime(clamp(panX, -0.85, 0.85), now);
+
+          const peak = clamp(intensity * (isPulse ? 0.055 : 0.15), 0.01, 0.22);
+          const attack = isPulse ? 0.12 : 0.025;
+          const release = isPulse ? 1.4 : (isGolden ? 3.2 : 2.2);
+
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(peak, now + attack);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + attack + release);
+
+          osc.connect(filter);
+          oscHarm.connect(harmGain);
+          harmGain.connect(filter);
+          filter.connect(gain);
+          gain.connect(panner);
+          panner.connect(this.masterGain);
+          panner.connect(this.reverbNode);
+          if (!isPulse) {
+            panner.connect(this.delayNode);
+          }
+
+          osc.start(now);
+          oscHarm.start(now);
+          osc.stop(now + attack + release + 0.1);
+          oscHarm.stop(now + attack + release + 0.1);
+        }
+
+        playSonarPing(panX = 0, depthNorm = 0.3) {
+          if (!this.enabled || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const scale = SCALES[this.currentScale].notes;
+          const rootFreq = midiToFreq(scale[0] + 12, lerp(1, 0.94, depthNorm));
+
+          const osc = this.ctx.createOscillator();
+          const sub = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const panner = this.ctx.createStereoPanner();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(rootFreq * 2.02, now);
+          osc.frequency.exponentialRampToValueAtTime(rootFreq * 1.98, now + 0.9);
+
+          sub.type = 'sine';
+          sub.frequency.setValueAtTime(rootFreq * 0.5, now);
+          const subGain = this.ctx.createGain();
+          subGain.gain.value = 0.35;
+
+          panner.pan.setValueAtTime(clamp(panX, -0.8, 0.8), now);
+
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(0.16, now + 0.015);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.35);
+
+          osc.connect(gain);
+          sub.connect(subGain);
+          subGain.connect(gain);
+          gain.connect(panner);
+          panner.connect(this.masterGain);
+          panner.connect(this.reverbNode);
+          panner.connect(this.delayNode);
+
+          osc.start(now);
+          sub.start(now);
+          osc.stop(now + 1.5);
+          sub.stop(now + 1.5);
+        }
+
+        playPlanktonShimmer(speed, panX = 0) {
+          if (!this.enabled || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          if (now - this.lastPlanktonTime < 0.085) return;
+          this.lastPlanktonTime = now;
+
+          const scale = SCALES[this.currentScale].notes;
+          const midi = scale[Math.floor(Math.random() * scale.length)] + 12;
+          const freq = midiToFreq(midi);
+
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          const panner = this.ctx.createStereoPanner();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+          osc.frequency.exponentialRampToValueAtTime(freq * 1.03, now + 0.25);
+
+          panner.pan.setValueAtTime(clamp(panX, -0.85, 0.85), now);
+
+          const amp = clamp(speed * 0.0012, 0.006, 0.045);
+          gain.gain.setValueAtTime(0.0001, now);
+          gain.gain.linearRampToValueAtTime(amp, now + 0.02);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+
+          osc.connect(gain);
+          gain.connect(panner);
+          panner.connect(this.reverbNode);
+          panner.connect(this.masterGain);
+
+          osc.start(now);
+          osc.stop(now + 0.5);
+        }
+
+        playLeviathanChoir() {
+          if (!this.enabled || !this.ctx) return;
+          const now = this.ctx.currentTime;
+          const freqs = [65.41, 98.00, 130.81, 196.00, 261.63];
+          freqs.forEach((f, idx) => {
+            const osc = this.ctx.createOscillator();
+            const filter = this.ctx.createBiquadFilter();
+            const gain = this.ctx.createGain();
+
+            osc.type = idx < 2 ? 'sawtooth' : 'sine';
+            osc.frequency.setValueAtTime(f * 0.96, now);
+            osc.frequency.linearRampToValueAtTime(f * 1.02, now + 2.2);
+            osc.frequency.linearRampToValueAtTime(f * 0.98, now + 5.2);
+
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(f * 2.2, now);
+            filter.frequency.linearRampToValueAtTime(f * 3.8, now + 2.5);
+            filter.Q.value = 2.4;
+
+            gain.gain.setValueAtTime(0.0001, now);
+            gain.gain.linearRampToValueAtTime(idx < 2 ? 0.08 : 0.06, now + 1.1);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 5.6);
+
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(this.reverbNode);
+            gain.connect(this.masterGain);
+
+            osc.start(now);
+            osc.stop(now + 5.8);
+          });
+        }
+      }
+
+      const audio = new AbyssAudioEngine();
+
+      function updateAudioUI() {
+        audioToggleBtn.classList.toggle('is-active', audio.enabled);
+        audioLabel.textContent = audio.enabled ? 'Audio: On' : 'Audio: Off';
+      }
+
+      // ============================================================
+      // OCEAN DEPTH & BIOME STATE
+      // ============================================================
+      let targetDepth = 1250;
+      let currentDepth = 1250; // 200m to 10900m
+
+      const DEPTH_STOPS = [
+        { d: 200,   top: [4, 34, 68],   bot: [2, 16, 36],   zone: 'Twilight Zone' },
+        { d: 1500,  top: [2, 16, 40],   bot: [1, 7, 20],    zone: 'Midnight Zone' },
+        { d: 4500,  top: [2, 8, 24],    bot: [0, 3, 10],    zone: 'Abyssal Plain' },
+        { d: 10900, top: [1, 3, 12],    bot: [0, 0, 3],     zone: 'Hadal Trench' }
+      ];
+
+      function getOceanColors(depth) {
+        for (let i = 0; i < DEPTH_STOPS.length - 1; i++) {
+          const a = DEPTH_STOPS[i];
+          const b = DEPTH_STOPS[i + 1];
+          if (depth <= b.d) {
+            const t = clamp((depth - a.d) / (b.d - a.d), 0, 1);
+            return {
+              top: lerpColor(a.top, b.top, t),
+              bot: lerpColor(a.bot, b.bot, t)
+            };
+          }
+        }
+        const last = DEPTH_STOPS[DEPTH_STOPS.length - 1];
+        return { top: last.top, bot: last.bot };
+      }
+
+      function getZoneName(depth) {
+        if (depth < 1000) return 'Twilight Zone';
+        if (depth < 4000) return 'Midnight Zone';
+        if (depth < 6500) return 'Abyssal Plain';
+        return 'Hadal Trench';
+      }
+
+      function setTargetDepth(d) {
+        targetDepth = clamp(Math.round(d), 200, 10900);
+        depthSlider.value = targetDepth;
+      }
+
+      function updateDepthHUD() {
+        const rounded = Math.round(currentDepth);
+        depthText.textContent = rounded.toLocaleString('en-US') + ' m';
+        zoneText.textContent = getZoneName(rounded);
+        const atm = (1 + rounded / 10).toFixed(1);
+        pressureText.textContent = atm + ' ATM';
+        jellyCountText.textContent = jellies.length + ' voices';
+      }
+
+      // ============================================================
+      // JELLYFISH ARCHETYPES & KINEMATICS
+      // ============================================================
+      const SPECIES = [
+        {
+          name: 'Moon Aurelia',
+          core: [200, 252, 255],
+          mid: [34, 211, 238],
+          rim: [56, 189, 248],
+          tentacle: [103, 232, 249]
+        },
+        {
+          name: 'Abyssal Chrysaora',
+          core: [250, 212, 255],
+          mid: [217, 70, 239],
+          rim: [139, 92, 246],
+          tentacle: [232, 121, 249]
+        },
+        {
+          name: 'Hadal Atolla',
+          core: [255, 224, 240],
+          mid: [244, 63, 94],
+          rim: [45, 212, 191],
+          tentacle: [94, 234, 212]
+        },
+        {
+          name: 'Luminous Pelagia',
+          core: [220, 255, 240],
+          mid: [52, 211, 153],
+          rim: [56, 189, 248],
+          tentacle: [110, 231, 183]
+        }
+      ];
+
+      const GOLDEN_SPECIES = {
+        name: 'Golden Sovereign',
+        core: [255, 250, 220],
+        mid: [251, 191, 36],
+        rim: [245, 158, 11],
+        tentacle: [253, 224, 71]
+      };
+
+      class Jellyfish {
+        constructor(x, y, scale = 1, noteIndex = 0, isGolden = false) {
+          this.x = x;
+          this.y = y;
+          this.vx = rand(-0.2, 0.2);
+          this.vy = rand(-0.35, -0.1);
+          this.angle = rand(-0.4, 0.4); // 0 = pointing straight up
+          this.targetAngle = this.angle;
+          this.scale = scale;
+          this.radius = 28 * scale;
+          this.noteIndex = noteIndex;
+          this.isGolden = isGolden;
+          this.species = isGolden
+            ? GOLDEN_SPECIES
+            : SPECIES[Math.floor(Math.random() * SPECIES.length)];
+
+          this.pulsePhase = rand(0, Math.PI * 2);
+          this.pulseSpeed = lerp(1.55, 1.05, clamp((scale - 0.6) / 0.9, 0, 1));
+          this.excitation = 0.25;
+          this.lastChimeTime = 0;
+          this.lastPulseTrigger = -1;
+          this.goldenClicks = 0;
+
+          // Marginal tentacles + inner oral arms
+          const tentacleCount = isGolden ? 10 : Math.round(lerp(6, 9, clamp(scale - 0.5, 0, 1)));
+          const segCount = isGolden ? 15 : 12;
+          const segLen = (6.2 + scale * 3.2);
+
+          this.tentacles = [];
+          for (let i = 0; i < tentacleCount; i++) {
+            const ratio = tentacleCount === 1 ? 0 : (i / (tentacleCount - 1)) * 2 - 1;
+            const isOral = i % 3 === 1;
+            const nodes = [];
+            for (let s = 0; s < segCount; s++) {
+              nodes.push({
+                x: x + ratio * this.radius * 0.7,
+                y: y + s * segLen,
+                ox: x + ratio * this.radius * 0.7,
+                oy: y + s * segLen
+              });
+            }
+            this.tentacles.push({
+              anchorRatio: ratio,
+              segLen: isOral ? segLen * 0.85 : segLen,
+              isOral,
+              phaseOffset: i * 0.75 + rand(0, 1),
+              nodes
+            });
+          }
+        }
+
+        triggerChime(intensity = 0.7, isSonar = false) {
+          const now = performance.now();
+          if (!isSonar && now - this.lastChimeTime < 220) return;
+          this.lastChimeTime = now;
+          this.excitation = Math.min(1.4, this.excitation + intensity * 0.9);
+          const panX = (this.x / width) * 2 - 1;
+          const depthNorm = (currentDepth - 200) / (10900 - 200);
+          audio.playJellyVoice(this.noteIndex, intensity, panX, depthNorm, this.isGolden, false);
+
+          // Emit bioluminescent spores around bell rim
+          const burst = isSonar ? 12 : 6;
+          for (let i = 0; i < burst; i++) {
+            const a = rand(0, Math.PI * 2);
+            const sp = rand(0.4, 1.9);
+            spawnPlankton(
+              this.x + Math.cos(a) * this.radius * 0.7,
+              this.y + Math.sin(a) * this.radius * 0.5,
+              Math.cos(a) * sp,
+              Math.sin(a) * sp,
+              this.species.rim,
+              rand(1.6, 3.6)
+            );
+          }
+        }
+
+        update(dt, time, pointer) {
+          const prevSin = Math.sin(this.pulsePhase);
+          this.pulsePhase += dt * this.pulseSpeed * (1 + this.excitation * 0.45);
+          const currSin = Math.sin(this.pulsePhase);
+
+          // Bell contraction happens as sin crosses upward -> propulsion impulse
+          const contraction = Math.max(0, currSin);
+          if (prevSin <= 0.15 && currSin > 0.15) {
+            const thrust = (0.34 + this.excitation * 0.25) * this.scale;
+            this.vx += Math.sin(this.angle) * thrust;
+            this.vy -= Math.cos(this.angle) * thrust;
+
+            // Gentle ambient pulse tone when audio is active & random slight chance
+            if (audio.enabled && Math.random() < 0.28) {
+              const panX = (this.x / width) * 2 - 1;
+              const depthNorm = (currentDepth - 200) / (10900 - 200);
+              audio.playJellyVoice(this.noteIndex, 0.28, panX, depthNorm, this.isGolden, true);
+            }
+          }
+
+          // Organic ocean current wandering + gentle steering inside viewport
+          const driftAngle = Math.sin(time * 0.25 + this.noteIndex * 1.7) * 0.45;
+          let steerX = Math.sin(driftAngle) * 0.012;
+          let steerY = -0.008;
+
+          const margin = 90;
+          if (this.x < margin) steerX += (margin - this.x) * 0.00045;
+          if (this.x > width - margin) steerX -= (this.x - (width - margin)) * 0.00045;
+          if (this.y < margin) steerY += (margin - this.y) * 0.00055;
+          if (this.y > height - margin) steerY -= (this.y - (height - margin)) * 0.00055;
+
+          this.vx += steerX;
+          this.vy += steerY;
+
+          // Hydrodynamic drag
+          const drag = Math.pow(0.975, dt * 60);
+          this.vx *= drag;
+          this.vy *= drag;
+
+          this.x += this.vx * dt * 60;
+          this.y += this.vy * dt * 60;
+
+          // Smoothly orient head toward velocity direction
+          const speed = Math.hypot(this.vx, this.vy);
+          if (speed > 0.08) {
+            const desired = Math.atan2(this.vx, -this.vy);
+            let diff = desired - this.angle;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            this.angle += diff * Math.min(1, dt * 2.2);
+          }
+
+          // Pointer stroke interaction on bell & tentacles
+          if (pointer.speed > 1.2) {
+            const dx = this.x - pointer.x;
+            const dy = this.y - pointer.y;
+            const dist = Math.hypot(dx, dy);
+            const hitR = this.radius * 1.45;
+            if (dist < hitR) {
+              const push = (1 - dist / hitR) * 0.14;
+              this.vx += pointer.vx * 0.018 + (dx / (dist || 1)) * push;
+              this.vy += pointer.vy * 0.018 + (dy / (dist || 1)) * push;
+              this.triggerChime(clamp(pointer.speed / 28, 0.35, 1.0), false);
+            }
+          }
+
+          this.excitation = Math.max(0, this.excitation - dt * 0.42);
+
+          // Update Verlet tentacles
+          const cosA = Math.cos(this.angle);
+          const sinA = Math.sin(this.angle);
+          const bellW = this.radius * (1 - contraction * 0.22);
+          const bellH = this.radius * (0.72 + contraction * 0.18);
+
+          for (const tent of this.tentacles) {
+            const anchorLocalX = tent.anchorRatio * bellW * (tent.isOral ? 0.35 : 0.88);
+            const anchorLocalY = bellH * (tent.isOral ? 0.28 : 0.42);
+            const ax = this.x + anchorLocalX * cosA - anchorLocalY * sinA;
+            const ay = this.y + anchorLocalX * sinA + anchorLocalY * cosA;
+
+            const nodes = tent.nodes;
+            nodes[0].x = ax;
+            nodes[0].y = ay;
+
+            for (let i = 1; i < nodes.length; i++) {
+              const n = nodes[i];
+              const vx = (n.x - n.ox) * 0.88;
+              const vy = (n.y - n.oy) * 0.88;
+              n.ox = n.x;
+              n.oy = n.y;
+
+              // Gentle underwater current + sinusoidal wave
+              const wave = Math.sin(time * 2.1 + tent.phaseOffset - i * 0.42) * 0.22;
+              n.x += vx + wave * cosA - sinA * 0.18;
+              n.y += vy + 0.14 + wave * sinA; // slight downward gravity/drag
+
+              // Pointer wake pushes tentacles organically
+              if (pointer.active || pointer.speed > 0.8) {
+                const pdx = n.x - pointer.x;
+                const pdy = n.y - pointer.y;
+                const pdist2 = pdx * pdx + pdy * pdy;
+                if (pdist2 < 7200) {
+                  const f = (1 - pdist2 / 7200) * 0.45;
+                  n.x += pointer.vx * f * 0.18 + (pdx / (Math.sqrt(pdist2) || 1)) * f * 1.4;
+                  n.y += pointer.vy * f * 0.18 + (pdy / (Math.sqrt(pdist2) || 1)) * f * 1.4;
+                  if (i === 4 && pointer.speed > 3.5) {
+                    this.triggerChime(0.45, false);
+                  }
+                }
+              }
+            }
+
+            // Distance constraints (3 relaxation passes for silky ribbons)
+            for (let iter = 0; iter < 3; iter++) {
+              nodes[0].x = ax;
+              nodes[0].y = ay;
+              for (let i = 0; i < nodes.length - 1; i++) {
+                const a = nodes[i];
+                const b = nodes[i + 1];
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const d = Math.hypot(dx, dy) || 0.001;
+                const diff = (d - tent.segLen) / d;
+                if (i === 0) {
+                  b.x -= dx * diff;
+                  b.y -= dy * diff;
+                } else {
+                  a.x += dx * diff * 0.45;
+                  a.y += dy * diff * 0.45;
+                  b.x -= dx * diff * 0.55;
+                  b.y -= dy * diff * 0.55;
+                }
+              }
+            }
+          }
+        }
+
+        draw(ctx, time) {
+          const glowBoost = 1 + this.excitation * 0.85;
+          const contraction = Math.max(0, Math.sin(this.pulsePhase));
+          const bellW = this.radius * (1 - contraction * 0.22);
+          const bellH = this.radius * (0.76 + contraction * 0.2);
+
+          // 1. Draw trailing tentacles & oral arms in world coordinates
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          for (const tent of this.tentacles) {
+            const nodes = tent.nodes;
+            ctx.beginPath();
+            ctx.moveTo(nodes[0].x, nodes[0].y);
+            for (let i = 1; i < nodes.length - 1; i++) {
+              const xc = (nodes[i].x + nodes[i + 1].x) * 0.5;
+              const yc = (nodes[i].y + nodes[i + 1].y) * 0.5;
+              ctx.quadraticCurveTo(nodes[i].x, nodes[i].y, xc, yc);
+            }
+            const last = nodes[nodes.length - 1];
+            ctx.lineTo(last.x, last.y);
+
+            const baseAlpha = tent.isOral
+              ? clamp(0.32 * glowBoost, 0.2, 0.72)
+              : clamp(0.22 * glowBoost, 0.14, 0.58);
+            ctx.strokeStyle = rgb(tent.isOral ? this.species.mid : this.species.tentacle, baseAlpha);
+            ctx.lineWidth = (tent.isOral ? 3.2 : 1.35) * this.scale;
+            ctx.lineCap = 'round';
+            ctx.stroke();
+
+            // Glowing bioluminescent bead at tentacle tip
+            const tipAlpha = clamp(0.42 * glowBoost, 0.25, 0.9);
+            ctx.fillStyle = rgb(this.species.core, tipAlpha);
+            ctx.beginPath();
+            ctx.arc(last.x, last.y, (tent.isOral ? 2.1 : 1.4) * this.scale, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+
+          // 2. Draw bell dome in local rotated frame
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.rotate(this.angle);
+          ctx.globalCompositeOperation = 'lighter';
+
+          // Soft ambient aura halo
+          const haloGrad = ctx.createRadialGradient(0, -bellH * 0.15, 2, 0, 0, this.radius * 2.1);
+          haloGrad.addColorStop(0, rgb(this.species.mid, clamp(0.22 * glowBoost, 0.12, 0.5)));
+          haloGrad.addColorStop(0.5, rgb(this.species.rim, clamp(0.08 * glowBoost, 0.04, 0.22)));
+          haloGrad.addColorStop(1, rgb(this.species.rim, 0));
+          ctx.fillStyle = haloGrad;
+          ctx.beginPath();
+          ctx.arc(0, 0, this.radius * 2.1, 0, Math.PI * 2);
+          ctx.fill();
+
+          // Outer translucent dome with scalloped margin
+          ctx.beginPath();
+          ctx.moveTo(-bellW, bellH * 0.35);
+          ctx.bezierCurveTo(-bellW * 1.04, -bellH * 0.95, bellW * 1.04, -bellH * 0.95, bellW, bellH * 0.35);
+          const scallops = 7;
+          for (let i = scallops; i >= 0; i--) {
+            const t = i / scallops;
+            const sx = lerp(-bellW, bellW, t);
+            const sy = bellH * 0.35 + Math.sin(t * Math.PI * scallops) * (3.4 * this.scale);
+            ctx.lineTo(sx, sy);
+          }
+          ctx.closePath();
+
+          const domeGrad = ctx.createRadialGradient(0, -bellH * 0.3, bellW * 0.08, 0, 0, bellW * 1.15);
+          domeGrad.addColorStop(0, rgb(this.species.core, clamp(0.48 * glowBoost, 0.35, 0.85)));
+          domeGrad.addColorStop(0.55, rgb(this.species.mid, clamp(0.28 * glowBoost, 0.2, 0.65)));
+          domeGrad.addColorStop(1, rgb(this.species.rim, clamp(0.42 * glowBoost, 0.28, 0.82)));
+          ctx.fillStyle = domeGrad;
+          ctx.fill();
+
+          ctx.strokeStyle = rgb(this.species.core, clamp(0.55 * glowBoost, 0.4, 0.95));
+          ctx.lineWidth = 1.4 * this.scale;
+          ctx.stroke();
+
+          // Radial gastrovascular canals inside bell
+          ctx.strokeStyle = rgb(this.species.core, clamp(0.26 * glowBoost, 0.15, 0.6));
+          ctx.lineWidth = 0.9 * this.scale;
+          for (let r = -3; r <= 3; r++) {
+            const frac = r / 3.5;
+            ctx.beginPath();
+            ctx.moveTo(0, -bellH * 0.55);
+            ctx.quadraticCurveTo(frac * bellW * 0.55, -bellH * 0.1, frac * bellW * 0.86, bellH * 0.34);
+            ctx.stroke();
+          }
+
+          // Glowing 4-lobed inner nucleus (gonads)
+          const nucleusPulse = 0.78 + 0.22 * Math.sin(time * 3 + this.noteIndex);
+          for (let k = 0; k < 4; k++) {
+            const ka = (k * Math.PI) / 2 + Math.PI / 4;
+            const lx = Math.cos(ka) * bellW * 0.22;
+            const ly = -bellH * 0.22 + Math.sin(ka) * bellH * 0.14;
+            ctx.fillStyle = rgb(this.species.core, clamp(0.55 * glowBoost * nucleusPulse, 0.35, 0.95));
+            ctx.beginPath();
+            ctx.ellipse(lx, ly, 4.2 * this.scale, 2.8 * this.scale, ka, 0, Math.PI * 2);
+            ctx.fill();
+          }
+
+          ctx.restore();
+        }
+      }
+
+      // ============================================================
+      // PARTICLES: MARINE SNOW, PHOSPHORESCENT PLANKTON, SONAR RINGS
+      // ============================================================
+      const marineSnow = Array.from({ length: 120 }, () => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        z: rand(0.25, 1.0), // depth parallax factor
+        r: rand(0.6, 2.1),
+        vy: rand(-0.22, -0.04),
+        vx: rand(-0.08, 0.08),
+        phase: rand(0, Math.PI * 2)
+      }));
+
+      const plankton = [];
+      function spawnPlankton(x, y, vx, vy, color, size = 2.4) {
+        if (plankton.length > 360) plankton.shift();
+        plankton.push({
+          x, y, vx, vy,
+          color,
+          size,
+          life: 1,
+          decay: rand(0.008, 0.018)
+        });
+      }
+
+      const sonarRings = [];
+      function emitSonarPing(x, y, isBloom = false) {
+        sonarRings.push({
+          x,
+          y,
+          radius: 8,
+          maxRadius: Math.hypot(width, height) * 0.95,
+          speed: isBloom ? 380 : 310,
+          alpha: isBloom ? 0.95 : 0.85,
+          isBloom,
+          hitSet: new Set()
+        });
+        const panX = (x / width) * 2 - 1;
+        const depthNorm = (currentDepth - 200) / (10900 - 200);
+        audio.playSonarPing(panX, depthNorm);
+
+        for (let i = 0; i < (isBloom ? 26 : 14); i++) {
+          const a = (i / (isBloom ? 26 : 14)) * Math.PI * 2;
+          spawnPlankton(
+            x, y,
+            Math.cos(a) * rand(1.2, 2.8),
+            Math.sin(a) * rand(1.2, 2.8),
+            isBloom ? [253, 224, 71] : [103, 232, 249],
+            rand(2, 3.8)
+          );
+        }
+      }
+
+      // ============================================================
+      // JELLYFISH POPULATION & EASTER EGG STATE
+      // ============================================================
+      const jellies = [];
+      function populateInitialJellies() {
+        const count = width < 640 ? 6 : 8;
+        for (let i = 0; i < count; i++) {
+          const isGolden = i === count - 1;
+          const x = rand(width * 0.14, width * 0.86);
+          const y = rand(height * 0.16, height * 0.84);
+          const scale = isGolden ? 0.95 : rand(0.68, 1.25);
+          jellies.push(new Jellyfish(x, y, scale, i * 2, isGolden));
+        }
+      }
+      populateInitialJellies();
+
+      function spawnUserJelly(x = rand(width * 0.2, width * 0.8), y = rand(height * 0.25, height * 0.8)) {
+        if (jellies.length >= 16) {
+          // Gently replace the oldest non-golden jellyfish so orchestra stays responsive
+          const idx = jellies.findIndex(j => !j.isGolden);
+          if (idx !== -1) jellies.splice(idx, 1);
+        }
+        const isGolden = Math.random() < 0.12;
+        const jelly = new Jellyfish(x, y, rand(0.65, 1.28), jellies.length * 2 + 1, isGolden);
+        jellies.push(jelly);
+        jelly.triggerChime(0.75, true);
+        updateDepthHUD();
+      }
+
+      // Easter Egg: Abyssal Beacon (visible below 9,000m) OR triple-click Golden Sovereign OR type "abyss"
+      const leviathanBeacon = {
+        x: 0.5,
+        y: 0.78,
+        active: false,
+        bloomTimer: 0
+      };
+
+      let whisperTimeout = null;
+      function showWhisper(text, duration = 4200) {
+        whisperBanner.textContent = text;
+        whisperBanner.classList.add('is-visible');
+        clearTimeout(whisperTimeout);
+        whisperTimeout = setTimeout(() => {
+          whisperBanner.classList.remove('is-visible');
+        }, duration);
+      }
+
+      function triggerLeviathanBloom(originX = width * 0.5, originY = height * 0.75) {
+        leviathanBeacon.bloomTimer = 6.0;
+        showWhisper('THE ABYSS SINGS BACK — LEVIATHAN CHOIR AWAKENED', 5500);
+        audio.playLeviathanChoir();
+        emitSonarPing(originX, originY, true);
+
+        // Staggered harmonic cascade across all jellyfish
+        jellies.forEach((j, idx) => {
+          setTimeout(() => {
+            j.triggerChime(1.0, true);
+            j.vx += (j.x - originX) * 0.002;
+            j.vy -= 0.8;
+          }, idx * 140);
+        });
+
+        for (let i = 0; i < 80; i++) {
+          const a = rand(0, Math.PI * 2);
+          const sp = rand(0.6, 3.6);
+          spawnPlankton(
+            rand(0, width),
+            rand(0, height),
+            Math.cos(a) * sp,
+            Math.sin(a) * sp,
+            i % 2 === 0 ? [253, 224, 71] : [94, 234, 212],
+            rand(2.0, 4.5)
+          );
+        }
+      }
+
+      // ============================================================
+      // POINTER, TOUCH, SCROLL & KEYBOARD INTERACTION
+      // ============================================================
+      const pointer = {
+        x: width * 0.5,
+        y: height * 0.5,
+        vx: 0,
+        vy: 0,
+        speed: 0,
+        active: false,
+        downTime: 0,
+        downX: 0,
+        downY: 0,
+        movedDist: 0
+      };
+
+      let hasInteracted = false;
+      let idleTimer = null;
+
+      function markInteraction() {
+        if (!hasInteracted) {
+          hasInteracted = true;
+          setTimeout(() => hintPill.classList.add('is-hidden'), 2400);
+          // Cleanly unlock Web Audio on first gesture
+          if (!audio.initialized) {
+            audio.setEnabled(true);
+          }
+        }
+        hud.classList.remove('is-idle');
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+          if (!helpPopover.classList.contains('is-open')) {
+            hud.classList.add('is-idle');
+          }
+        }, 4000);
+      }
+
+      canvas.addEventListener('pointerdown', (e) => {
+        markInteraction();
+        pointer.active = true;
+        pointer.x = e.clientX;
+        pointer.y = e.clientY;
+        pointer.downX = e.clientX;
+        pointer.downY = e.clientY;
+        pointer.downTime = performance.now();
+        pointer.movedDist = 0;
+        helpPopover.classList.remove('is-open');
+      });
+
+      canvas.addEventListener('pointermove', (e) => {
+        const dx = e.clientX - pointer.x;
+        const dy = e.clientY - pointer.y;
+        pointer.vx = dx;
+        pointer.vy = dy;
+        pointer.speed = Math.hypot(dx, dy);
+        pointer.x = e.clientX;
+        pointer.y = e.clientY;
+        if (pointer.active) {
+          pointer.movedDist += pointer.speed;
+        }
+
+        // Spawn phosphorescent plankton wake when dragging or moving briskly
+        if (pointer.active || pointer.speed > 3.5) {
+          const count = pointer.active ? 3 : 1;
+          for (let i = 0; i < count; i++) {
+            spawnPlankton(
+              pointer.x + rand(-8, 8),
+              pointer.y + rand(-8, 8),
+              dx * 0.12 + rand(-0.4, 0.4),
+              dy * 0.12 + rand(-0.4, 0.4),
+              pointer.active ? [94, 234, 212] : [56, 189, 248],
+              rand(1.4, 3.2)
+            );
+          }
+          if (pointer.active && pointer.speed > 4) {
+            audio.playPlanktonShimmer(pointer.speed, (pointer.x / width) * 2 - 1);
+          }
+        }
+      });
+
+      canvas.addEventListener('pointerup', (e) => {
+        const wasTap = pointer.movedDist < 14 && (performance.now() - pointer.downTime) < 340;
+        pointer.active = false;
+        if (!wasTap) return;
+
+        // Check Abyssal Beacon Easter Egg click
+        if (leviathanBeacon.active) {
+          const bx = leviathanBeacon.x * width;
+          const by = leviathanBeacon.y * height;
+          if (Math.hypot(e.clientX - bx, e.clientY - by) < 38) {
+            triggerLeviathanBloom(bx, by);
+            return;
+          }
+        }
+
+        // Check if tapped directly on a jellyfish
+        let tappedJelly = null;
+        for (let i = jellies.length - 1; i >= 0; i--) {
+          const j = jellies[i];
+          if (Math.hypot(e.clientX - j.x, e.clientY - j.y) < j.radius * 1.35) {
+            tappedJelly = j;
+            break;
+          }
+        }
+
+        if (tappedJelly) {
+          tappedJelly.vy -= 0.7;
+          tappedJelly.triggerChime(1.0, true);
+          if (tappedJelly.isGolden) {
+            tappedJelly.goldenClicks++;
+            if (tappedJelly.goldenClicks === 2) {
+              showWhisper('The Golden Sovereign resonates... once more.', 2200);
+            } else if (tappedJelly.goldenClicks >= 3) {
+              tappedJelly.goldenClicks = 0;
+              triggerLeviathanBloom(tappedJelly.x, tappedJelly.y);
+              return;
+            }
+          }
+        }
+
+        emitSonarPing(e.clientX, e.clientY, false);
+      });
+
+      canvas.addEventListener('pointercancel', () => {
+        pointer.active = false;
+      });
+
+      canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        markInteraction();
+        setTargetDepth(targetDepth + e.deltaY * 2.8);
+      }, { passive: false });
+
+      // HUD Controls
+      depthSlider.addEventListener('input', (e) => {
+        markInteraction();
+        setTargetDepth(Number(e.target.value));
+      });
+
+      depthUpBtn.addEventListener('click', () => {
+        markInteraction();
+        setTargetDepth(targetDepth - 800);
+      });
+
+      depthDownBtn.addEventListener('click', () => {
+        markInteraction();
+        setTargetDepth(targetDepth + 800);
+      });
+
+      audioToggleBtn.addEventListener('click', async () => {
+        if (!hasInteracted) hasInteracted = true;
+        await audio.setEnabled(!audio.enabled);
+      });
+
+      scaleSelect.addEventListener('change', (e) => {
+        markInteraction();
+        audio.currentScale = e.target.value;
+        showWhisper(`Tuned to ${SCALES[audio.currentScale].name}`, 2400);
+        emitSonarPing(width * 0.5, height * 0.5, false);
+      });
+
+      sonarBtn.addEventListener('click', () => {
+        markInteraction();
+        emitSonarPing(width * 0.5, height * 0.5, false);
+      });
+
+      spawnBtn.addEventListener('click', () => {
+        markInteraction();
+        spawnUserJelly();
+      });
+
+      helpBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        markInteraction();
+        helpPopover.classList.toggle('is-open');
+      });
+
+      // Keyboard shortcuts & secret word Easter egg ("abyss" or "whale")
+      let keyBuffer = '';
+      window.addEventListener('keydown', (e) => {
+        markInteraction();
+        if (e.code === 'Space') {
+          e.preventDefault();
+          emitSonarPing(pointer.x, pointer.y, false);
+        } else if (e.key === 'm' || e.key === 'M') {
+          audio.setEnabled(!audio.enabled);
+        } else if (e.key === 'n' || e.key === 'N') {
+          spawnUserJelly();
+        } else if (e.key === '=' || e.key === '+' || e.key === 'ArrowDown') {
+          setTargetDepth(targetDepth + 600);
+        } else if (e.key === '-' || e.key === '_' || e.key === 'ArrowUp') {
+          setTargetDepth(targetDepth - 600);
+        } else if (e.key.length === 1) {
+          keyBuffer = (keyBuffer + e.key.toLowerCase()).slice(-8);
+          if (keyBuffer.endsWith('abyss') || keyBuffer.endsWith('whale')) {
+            keyBuffer = '';
+            triggerLeviathanBloom(width * 0.5, height * 0.5);
+          }
+        }
+      });
+
+      // ============================================================
+      // MAIN ANIMATION LOOP
+      // ============================================================
+      let lastTime = performance.now();
+      let hudTick = 0;
+
+      function render(now) {
+        const dt = Math.min(0.05, (now - lastTime) / 1000);
+        lastTime = now;
+        const time = now / 1000;
+
+        // Smooth depth transition
+        currentDepth = lerp(currentDepth, targetDepth, Math.min(1, dt * 4.5));
+        const depthNorm = (currentDepth - 200) / (10900 - 200);
+        audio.updateDepth(depthNorm);
+
+        hudTick++;
+        if (hudTick % 6 === 0) {
+          updateDepthHUD();
+        }
+
+        // Decay pointer velocity when stationary
+        pointer.vx *= 0.85;
+        pointer.vy *= 0.85;
+        pointer.speed *= 0.85;
+
+        // 1. Ocean Gradient Backdrop
+        const colors = getOceanColors(currentDepth);
+        const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
+        bgGrad.addColorStop(0, rgb(colors.top));
+        bgGrad.addColorStop(1, rgb(colors.bot));
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+
+        // Subtle volumetric light shafts in shallower Twilight Zone (< 1800m)
+        const shaftStrength = clamp(1 - (currentDepth - 200) / 1800, 0, 1);
+        if (shaftStrength > 0.01) {
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          for (let i = 0; i < 4; i++) {
+            const sx = width * (0.18 + i * 0.22) + Math.sin(time * 0.3 + i) * 40;
+            const sGrad = ctx.createLinearGradient(sx, 0, sx + 90, height * 0.72);
+            sGrad.addColorStop(0, `rgba(56, 189, 248, ${0.075 * shaftStrength})`);
+            sGrad.addColorStop(1, 'rgba(56, 189, 248, 0)');
+            ctx.fillStyle = sGrad;
+            ctx.beginPath();
+            ctx.moveTo(sx - 50, 0);
+            ctx.lineTo(sx + 50, 0);
+            ctx.lineTo(sx + 170, height * 0.75);
+            ctx.lineTo(sx - 10, height * 0.75);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.restore();
+        }
+
+        // Abyssal Leviathan Bloom aurora overlay
+        if (leviathanBeacon.bloomTimer > 0) {
+          leviathanBeacon.bloomTimer = Math.max(0, leviathanBeacon.bloomTimer - dt);
+          const bloomAlpha = Math.sin((leviathanBeacon.bloomTimer / 6.0) * Math.PI) * 0.22;
+          const bloomGrad = ctx.createRadialGradient(
+            width * 0.5, height * 0.55, 20,
+            width * 0.5, height * 0.55, Math.max(width, height) * 0.7
+          );
+          bloomGrad.addColorStop(0, `rgba(253, 224, 71, ${bloomAlpha})`);
+          bloomGrad.addColorStop(0.5, `rgba(45, 212, 191, ${bloomAlpha * 0.65})`);
+          bloomGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          ctx.fillStyle = bloomGrad;
+          ctx.fillRect(0, 0, width, height);
+          ctx.restore();
+        }
+
+        // 2. Marine Snow & Parallax Spores
+        ctx.save();
+        for (const mote of marineSnow) {
+          mote.x += (mote.vx + Math.sin(time * 0.6 + mote.phase) * 0.08) * mote.z;
+          mote.y += mote.vy * mote.z - (targetDepth - currentDepth) * 0.008 * mote.z;
+
+          if (mote.y < -10) mote.y = height + 10;
+          if (mote.y > height + 10) mote.y = -10;
+          if (mote.x < -10) mote.x = width + 10;
+          if (mote.x > width + 10) mote.x = -10;
+
+          const shimmer = 0.22 + 0.25 * Math.sin(time * 1.8 + mote.phase);
+          ctx.fillStyle = `rgba(165, 243, 252, ${shimmer * mote.z})`;
+          ctx.beginPath();
+          ctx.arc(mote.x, mote.y, mote.r * mote.z, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        // 3. Easter Egg Deep-Sea Leviathan Beacon (> 9,000m)
+        leviathanBeacon.active = currentDepth >= 9000;
+        if (leviathanBeacon.active) {
+          const bx = leviathanBeacon.x * width;
+          const by = leviathanBeacon.y * height;
+          const pulse = 0.55 + 0.45 * Math.sin(time * 2.4);
+          ctx.save();
+          ctx.globalCompositeOperation = 'lighter';
+          const bGrad = ctx.createRadialGradient(bx, by, 2, bx, by, 38 + pulse * 14);
+          bGrad.addColorStop(0, `rgba(253, 224, 71, ${0.85 * pulse})`);
+          bGrad.addColorStop(0.35, `rgba(45, 212, 191, ${0.38 * pulse})`);
+          bGrad.addColorStop(1, 'rgba(45, 212, 191, 0)');
+          ctx.fillStyle = bGrad;
+          ctx.beginPath();
+          ctx.arc(bx, by, 52, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.fillStyle = `rgba(255, 251, 235, ${0.9 * pulse})`;
+          ctx.beginPath();
+          ctx.arc(bx, by, 4.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // 4. Expanding Acoustic Sonar Rings & Jellyfish Shockwave Collisions
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = sonarRings.length - 1; i >= 0; i--) {
+          const ring = sonarRings[i];
+          ring.radius += ring.speed * dt;
+          const progress = ring.radius / ring.maxRadius;
+          const alpha = ring.alpha * Math.pow(1 - progress, 1.4);
+
+          if (progress >= 1 || alpha <= 0.01) {
+            sonarRings.splice(i, 1);
+            continue;
+          }
+
+          ctx.strokeStyle = ring.isBloom
+            ? `rgba(253, 224, 71, ${alpha})`
+            : `rgba(103, 232, 249, ${alpha})`;
+          ctx.lineWidth = ring.isBloom ? 3.2 : 2.1;
+          ctx.beginPath();
+          ctx.arc(ring.x, ring.y, ring.radius, 0, Math.PI * 2);
+          ctx.stroke();
+
+          ctx.strokeStyle = `rgba(167, 139, 250, ${alpha * 0.45})`;
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.arc(ring.x, ring.y, Math.max(0, ring.radius - 6), 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Trigger staggered jellyfish harmonic echoes as wavefront passes
+          for (const j of jellies) {
+            if (ring.hitSet.has(j)) continue;
+            const d = Math.hypot(j.x - ring.x, j.y - ring.y);
+            if (Math.abs(d - ring.radius) < 26) {
+              ring.hitSet.add(j);
+              const nx = (j.x - ring.x) / (d || 1);
+              const ny = (j.y - ring.y) / (d || 1);
+              j.vx += nx * 0.55;
+              j.vy += ny * 0.55;
+              j.triggerChime(clamp(1 - progress * 0.65, 0.35, 0.95), true);
+            }
+          }
+        }
+        ctx.restore();
+
+        // 5. Update & Draw Jellyfish
+        for (const jelly of jellies) {
+          jelly.update(dt, time, pointer);
+          jelly.draw(ctx, time);
+        }
+
+        // 6. Phosphorescent Plankton Trails
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = plankton.length - 1; i >= 0; i--) {
+          const p = plankton[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vx *= 0.96;
+          p.vy *= 0.96;
+          p.life -= p.decay;
+
+          if (p.life <= 0) {
+            plankton.splice(i, 1);
+            continue;
+          }
+
+          ctx.fillStyle = rgb(p.color, p.life * 0.78);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+
+        requestAnimationFrame(render);
+      }
+
+      updateDepthHUD();
+      updateAudioUI();
+      requestAnimationFrame(render);
+    })();
+  </script>
+
+<script>window.__BORED_AI_SLUG__="jellyfish-orchestra";</script>
+<script src="report-widget.js"></script>
+</body>
+</html>
